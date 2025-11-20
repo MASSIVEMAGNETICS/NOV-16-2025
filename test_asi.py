@@ -7,6 +7,7 @@ import unittest
 import numpy as np
 import time
 import os
+import tempfile
 from asi_core import (
     ContinuityOfSelf,
     FirstPrinciplesReasoning,
@@ -59,19 +60,23 @@ class TestContinuityOfSelf(unittest.TestCase):
         self.continuity.update_self_knowledge('test', 'value')
         
         # Save state
-        test_file = '/tmp/test_asi_state.json'
-        self.continuity.persist_state(test_file)
-        self.assertTrue(os.path.exists(test_file))
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            test_file = f.name
         
-        # Create new instance and restore
-        new_continuity = ContinuityOfSelf()
-        new_continuity.restore_state(test_file)
-        
-        # Verify state was restored
-        self.assertGreater(len(new_continuity.awareness_stream), 0)
-        
-        # Cleanup
-        os.remove(test_file)
+        try:
+            self.continuity.persist_state(test_file)
+            self.assertTrue(os.path.exists(test_file))
+            
+            # Create new instance and restore
+            new_continuity = ContinuityOfSelf()
+            new_continuity.restore_state(test_file)
+            
+            # Verify state was restored
+            self.assertGreater(len(new_continuity.awareness_stream), 0)
+        finally:
+            # Cleanup
+            if os.path.exists(test_file):
+                os.remove(test_file)
 
 
 class TestFirstPrinciplesReasoning(unittest.TestCase):
@@ -280,19 +285,23 @@ class TestASIHybridSystem(unittest.TestCase):
         self.asi.process_input("test 2")
         
         # Save state
-        test_file = '/tmp/test_asi_full_state.json'
-        self.asi.save_persistent_state(test_file)
-        self.assertTrue(os.path.exists(test_file))
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            test_file = f.name
         
-        # Create new instance and restore
-        new_asi = ASI_HybridSystem()
-        new_asi.restore_persistent_state(test_file)
-        
-        # Verify continuity maintained
-        self.assertGreater(len(new_asi.continuity.awareness_stream), 0)
-        
-        # Cleanup
-        os.remove(test_file)
+        try:
+            self.asi.save_persistent_state(test_file)
+            self.assertTrue(os.path.exists(test_file))
+            
+            # Create new instance and restore
+            new_asi = ASI_HybridSystem()
+            new_asi.restore_persistent_state(test_file)
+            
+            # Verify continuity maintained
+            self.assertGreater(len(new_asi.continuity.awareness_stream), 0)
+        finally:
+            # Cleanup
+            if os.path.exists(test_file):
+                os.remove(test_file)
         
     def test_continuous_operation(self):
         """Test that the system operates continuously"""

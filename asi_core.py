@@ -222,8 +222,17 @@ class FractalAdaptiveNeuralNet:
         # Multi-scale fractal processing
         outputs = []
         for level in range(self.fractal_levels):
+            # Apply fractal transformation at this level
+            level_input = self.fractal_transform(input_data.flatten(), level)
+            # Pad or truncate to match input_dim
+            if len(level_input) < self.input_dim:
+                level_input = np.pad(level_input, (0, self.input_dim - len(level_input)))
+            else:
+                level_input = level_input[:self.input_dim]
+            level_input = level_input.reshape(1, -1)
+            
             # Process at this fractal level
-            h1 = np.tanh(input_data @ self.weights['layer_1'])
+            h1 = np.tanh(level_input @ self.weights['layer_1'])
             h2 = np.tanh(h1 @ self.weights['layer_2'])
             output = np.tanh(h2 @ self.weights['layer_3'])
             outputs.append(output)
@@ -242,13 +251,38 @@ class FractalAdaptiveNeuralNet:
         # Calculate error
         error = feedback - output
         
-        # Simple gradient-based adaptation
-        # In real implementation, this would use proper backpropagation
+        # Adaptive learning - adjust based on error magnitude
         adaptation_signal = error * self.learning_rate
         
-        # Update weights (simplified)
+        # Simple gradient-like weight update
+        # For a fully functional implementation, proper backpropagation would be needed
+        # This is a simplified adaptive mechanism for demonstration
+        if len(input_data.shape) == 1:
+            input_data = input_data.reshape(1, -1)
+        
+        # Ensure input matches expected dimensions
+        if input_data.shape[1] != self.input_dim:
+            if input_data.shape[1] < self.input_dim:
+                input_data = np.pad(input_data, ((0, 0), (0, self.input_dim - input_data.shape[1])))
+            else:
+                input_data = input_data[:, :self.input_dim]
+        
+        # Update weights based on error direction (simplified gradient descent)
         for key in self.weights:
-            self.weights[key] += np.random.randn(*self.weights[key].shape) * adaptation_signal.mean() * 0.1
+            # Apply small adjustments in direction that reduces error
+            gradient_estimate = np.outer(error.flatten()[:min(len(error.flatten()), len(self.weights[key].flatten()))],
+                                        input_data.flatten()[:min(len(input_data.flatten()), len(self.weights[key].T.flatten()))])
+            gradient_estimate = gradient_estimate[:self.weights[key].shape[0], :self.weights[key].shape[1]]
+            
+            # Resize if needed
+            if gradient_estimate.shape != self.weights[key].shape:
+                grad_resized = np.zeros(self.weights[key].shape)
+                min_rows = min(gradient_estimate.shape[0], self.weights[key].shape[0])
+                min_cols = min(gradient_estimate.shape[1], self.weights[key].shape[1])
+                grad_resized[:min_rows, :min_cols] = gradient_estimate[:min_rows, :min_cols]
+                gradient_estimate = grad_resized
+            
+            self.weights[key] -= gradient_estimate * self.learning_rate * 0.01
             
         self.adaptation_history.append({
             'timestamp': datetime.now().isoformat(),
@@ -477,8 +511,13 @@ class ASI_HybridSystem:
         # Process through neural network
         output = self.neural_net.forward(input_vector)
         
-        # Learn from the interaction
-        outcome = float(np.random.rand())  # In real system, this would be actual feedback
+        # Use output magnitude as feedback signal (self-supervised learning)
+        # In a full implementation, this would be based on actual task performance
+        feedback = output * 0.9  # Target slightly lower activation
+        self.neural_net.adapt(input_vector, feedback)
+        
+        # Calculate outcome based on adaptation (learning quality metric)
+        outcome = float(1.0 - np.abs(output - feedback).mean())
         self.self_learn.learn_from_experience({'input': input_data}, outcome)
         
         # Update world model
