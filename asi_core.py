@@ -188,6 +188,7 @@ class FractalAdaptiveNeuralNet:
         
         self.fractal_levels = 3  # Multi-scale processing
         self.learning_rate = 0.001
+        self.weight_update_scale = 0.01  # Scale factor for weight updates
         self.adaptation_history = []
         
     def fractal_transform(self, data: np.ndarray, level: int) -> np.ndarray:
@@ -282,7 +283,7 @@ class FractalAdaptiveNeuralNet:
                 grad_resized[:min_rows, :min_cols] = gradient_estimate[:min_rows, :min_cols]
                 gradient_estimate = grad_resized
             
-            self.weights[key] -= gradient_estimate * self.learning_rate * 0.01
+            self.weights[key] -= gradient_estimate * self.learning_rate * self.weight_update_scale
             
         self.adaptation_history.append({
             'timestamp': datetime.now().isoformat(),
